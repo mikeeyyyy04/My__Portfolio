@@ -1,5 +1,8 @@
-import { useState, type FormEvent } from "react";
-import { Mail, Phone, MapPin, Globe, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Mail, Phone, MapPin, Globe, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Reveal } from "./Reveal";
 
 const DETAILS = [
@@ -17,12 +20,59 @@ const DETAILS = [
 const FIELD =
   "w-full rounded-xl border border-input bg-background/60 px-4 py-3 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/70 focus:border-primary/70 focus:shadow-[0_0_24px_-6px_var(--glow)]";
 
+// Form validation schema
+const contactFormSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  type: z.string().min(1, "Please select a project type"),
+  budget: z.string().min(1, "Please select a budget range"),
+  message: z.string().min(10, "Message must be at least 10 characters"),
+});
+
+type ContactFormData = z.infer<typeof contactFormSchema>;
+
 export function Contact() {
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(contactFormSchema),
+  });
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSent(true);
+  const onSubmit = async (data: ContactFormData) => {
+    try {
+      setError(null);
+      
+      // Send to Formspree - must use FormData and not JSON
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("email", data.email);
+      formData.append("type", data.type);
+      formData.append("budget", data.budget);
+      formData.append("message", data.message);
+
+      const response = await fetch("https://formspree.io/f/xkjnnldl", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send message");
+      }
+
+      setSent(true);
+      reset();
+      
+      // Reset success message after 5 seconds
+      setTimeout(() => setSent(false), 5000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send message. Please try again.");
+      console.error("Form submission error:", err);
+    }
   };
 
   return (
@@ -63,8 +113,9 @@ export function Contact() {
           </ul>
         </Reveal>
 
+
         <Reveal delay={120}>
-          <form onSubmit={onSubmit} className="glass rounded-3xl p-7 sm:p-9">
+          <form onSubmit={handleSubmit(onSubmit)} className="glass rounded-3xl p-7 sm:p-9">
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="sm:col-span-1">
                 <label htmlFor="name" className="mb-2 block text-xs text-muted-foreground">
@@ -72,11 +123,15 @@ export function Contact() {
                 </label>
                 <input
                   id="name"
-                  name="name"
-                  required
+                  {...register("name")}
                   className={FIELD}
                   placeholder="Juan Dela Cruz"
                 />
+                {errors.name && (
+                  <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.name.message}
+                  </p>
+                )}
               </div>
               <div className="sm:col-span-1">
                 <label htmlFor="email" className="mb-2 block text-xs text-muted-foreground">
@@ -84,41 +139,51 @@ export function Contact() {
                 </label>
                 <input
                   id="email"
-                  name="email"
+                  {...register("email")}
                   type="email"
-                  required
                   className={FIELD}
                   placeholder="you@email.com"
                 />
+                {errors.email && (
+                  <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.email.message}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="type" className="mb-2 block text-xs text-muted-foreground">
                   Project Type
                 </label>
-                <select id="type" name="type" required defaultValue="" className={FIELD}>
-                  <option value="" disabled>
-                    Select a type
-                  </option>
+                <select id="type" {...register("type")} className={FIELD}>
+                  <option value="">Select a type</option>
                   <option>Web Development</option>
                   <option>Mobile App Development</option>
                   <option>Full Stack Development</option>
                   <option>UI/UX Implementation</option>
                   <option>Other</option>
                 </select>
+                {errors.type && (
+                  <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.type.message}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="budget" className="mb-2 block text-xs text-muted-foreground">
                   Budget Range
                 </label>
-                <select id="budget" name="budget" required defaultValue="" className={FIELD}>
-                  <option value="" disabled>
-                    Select a range
-                  </option>
+                <select id="budget" {...register("budget")} className={FIELD}>
+                  <option value="">Select a range</option>
                   <option>Below $500</option>
                   <option>$500 - $1,000</option>
                   <option>$1,000 - $2,500</option>
                   <option>$2,500+</option>
                 </select>
+                {errors.budget && (
+                  <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.budget.message}
+                  </p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <label htmlFor="message" className="mb-2 block text-xs text-muted-foreground">
@@ -126,30 +191,48 @@ export function Contact() {
                 </label>
                 <textarea
                   id="message"
-                  name="message"
+                  {...register("message")}
                   rows={5}
-                  required
                   className={FIELD}
                   placeholder="Goals, timeline, platforms..."
                 />
+                {errors.message && (
+                  <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle size={12} /> {errors.message.message}
+                  </p>
+                )}
               </div>
             </div>
 
             <button
               type="submit"
-              className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-accent)] px-7 py-3.5 font-display text-xs font-bold tracking-[0.18em] text-primary-foreground uppercase shadow-[0_0_30px_-8px_var(--glow)] transition-all hover:shadow-[0_0_44px_-4px_var(--glow)]"
+              disabled={isSubmitting}
+              className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[image:var(--gradient-accent)] px-7 py-3.5 font-display text-xs font-bold tracking-[0.18em] text-primary-foreground uppercase shadow-[0_0_30px_-8px_var(--glow)] transition-all hover:shadow-[0_0_44px_-4px_var(--glow)] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Send message
-              <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  Send message
+                  <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
+                </>
+              )}
             </button>
 
-            <p aria-live="polite" className="mt-4 min-h-5 text-center text-xs text-primary">
-              {sent && (
-                <span className="inline-flex items-center gap-2">
-                  <CheckCircle2 size={14} /> Thanks — your message is ready to send.
-                </span>
-              )}
-            </p>
+            {error && (
+              <p className="mt-4 text-center text-xs text-red-500 flex items-center justify-center gap-2">
+                <AlertCircle size={14} /> {error}
+              </p>
+            )}
+
+            {sent && (
+              <p className="mt-4 text-center text-xs text-primary flex items-center justify-center gap-2">
+                <CheckCircle2 size={14} /> Thanks — your message has been sent!
+              </p>
+            )}
           </form>
         </Reveal>
       </div>
