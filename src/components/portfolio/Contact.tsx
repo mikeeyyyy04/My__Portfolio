@@ -47,18 +47,19 @@ export function Contact() {
     try {
       setError(null);
       
-      // Create FormData for submission
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("email", data.email);
-      formData.append("type", data.type);
-      formData.append("budget", data.budget);
-      formData.append("message", data.message);
-
-      // Send to our API endpoint
+      // Send JSON to our Vercel API endpoint
       const response = await fetch("/api/contact", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          type: data.type,
+          budget: data.budget,
+          message: data.message,
+        }),
       });
 
       if (!response.ok) {
