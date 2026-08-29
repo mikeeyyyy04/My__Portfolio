@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Mail, Phone, MapPin, Globe, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Reveal } from "./Reveal";
+import { submitContactForm } from "~/server/contact";
 
 const DETAILS = [
   {
@@ -46,31 +47,15 @@ export function Contact() {
   const onSubmit = async (data: ContactFormData) => {
     try {
       setError(null);
-      
-      // Send to Formspree - must use FormData and not JSON
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("email", data.email);
-      formData.append("type", data.type);
-      formData.append("budget", data.budget);
-      formData.append("message", data.message);
-
-      const response = await fetch("https://formspree.io/f/xkjnnldl", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
+      await submitContactForm(data);
       setSent(true);
       reset();
       
       // Reset success message after 5 seconds
       setTimeout(() => setSent(false), 5000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message. Please try again.");
+      const errorMessage = err instanceof Error ? err.message : "Failed to send message. Please try again.";
+      setError(errorMessage);
       console.error("Form submission error:", err);
     }
   };
