@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Mail, Phone, MapPin, Globe, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Reveal } from "./Reveal";
-import { submitContactForm } from "~/server/contact";
 
 const DETAILS = [
   {
@@ -47,7 +46,26 @@ export function Contact() {
   const onSubmit = async (data: ContactFormData) => {
     try {
       setError(null);
-      await submitContactForm(data);
+      
+      // Create FormData for submission
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("email", data.email);
+      formData.append("type", data.type);
+      formData.append("budget", data.budget);
+      formData.append("message", data.message);
+
+      // Send to our API endpoint
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send message");
+      }
+
       setSent(true);
       reset();
       
